@@ -16,4 +16,4 @@ def sendImage(msg, img):
     return resp
 
 message = buildTable.message
-sendImage(message, open('daily.png', 'rb'))
+sendImage(message, open('images/daily.png', 'rb'))
