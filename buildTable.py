@@ -4,7 +4,7 @@ import json
 import datetime
 
 # column width
-width = 14
+width = 16
 
 def convertDate(t):
     # month-name day, year
@@ -15,39 +15,57 @@ def calcPadding(val):
     right = ' ' * (width - len(val) - int((width - len(val)) / 2))
     return (left,right)
 
+def convertBytes(val, t):
+    unit = 'B' if t == 1000 else 'iB'
+    val = round(val / t, 2)
+
+    if (val >= 1000 and val < 1000000):
+        return str(round(val / t, 2)) + ' G' + unit
+    elif (val >= 1000000):
+        return str(round(val / (t * t), 2)) + ' T' + unit
+
+    return str(val) + ' M' + unit
+
+def remap(value):
+    # return (value - oldRangeMin) / (oldRangeMax - oldRangeMin) * (rangeMax - rangeMin) + rangeMin;
+    return value * (1024 - 1000) + 1000
+
+def populateList(up, dw, tt):
+    arr = [[up, dw, tt], [up, dw, tt]]
+
+    for i in range(len(arr)):
+        for j in range(len(arr[i])):
+            arr[i][j] = convertBytes(arr[i][j], remap(i))
+
+    return arr
+
+def formatString(up, dw, tt):
+    arr = populateList(up, dw, tt)
+    res = ''
+
+    for i in range(len(arr)):
+        for j in range(len(arr[i])):
+            arr[i][j] = calcPadding(arr[i][j])[0] + arr[i][j] + calcPadding(arr[i][j])[1]
+
+    for el in arr:
+        res = res + '|' + el[0] + '|' + el[1] + '|' + el[2] + '|\n'
+
+    return res
+
 f = open('data.json')
 content = json.load(f)
 
 today = content['interfaces'][0]['traffic']['days'][0]
 
 date = today['date']
-rx = today['rx'] / 1000
-tx = today['tx'] / 1000
-total = (today['rx'] + today['tx']) / 1000
 
-rxConverted = round(today['rx'] / 1024, 3)
-txConverted = round(today['tx'] / 1024, 3)
-totalConverted = round((today['rx'] + today['tx']) / 1024, 3)
+header = '\n|' + calcPadding('Uploaded')[0] + 'Uploaded' + calcPadding('Uploaded')[1]
+header = header + '|' + calcPadding('Downloaded')[0] + 'Downloaded' + calcPadding('Downloaded')[1]
+header = header + '|' + calcPadding('Total')[0] + 'Total' + calcPadding('Total')[1] + '|\n'
 
-rx = str(rx) + ' MB'
-rx = calcPadding(rx)[0] + rx + calcPadding(rx)[1]
-tx = str(tx) + ' MB'
-tx = calcPadding(tx)[0] + tx + calcPadding(tx)[1]
-total = str(total) + ' MB'
-total = calcPadding(total)[0] + total + calcPadding(total)[1]
-
-rxConverted = str(rxConverted) + ' MiB'
-rxConverted = calcPadding(rxConverted)[0] + rxConverted + calcPadding(rxConverted)[1]
-txConverted = str(txConverted) + ' MiB'
-txConverted = calcPadding(txConverted)[0] + txConverted + calcPadding(txConverted)[1]
-totalConverted = str(totalConverted) + ' MiB'
-totalConverted = calcPadding(totalConverted)[0] + totalConverted + calcPadding(totalConverted)[1]
-
-header = '\n|   Uploaded   |  Downloaded  |    Total     |\n'
 linebreak = '|' + '-' * width + '|' + '-' * width + '|' + '-' * width + '|\n'
-valuesBytes = '|' + rx + '|' + tx + '|' + total + '|\n'
-valuesBibytes = '|' + rxConverted + '|' + txConverted + '|' + totalConverted + '|'
+values = formatString(today['rx'], today['tx'], today['rx'] + today['tx'])
 
-table = header + linebreak + valuesBytes + valuesBibytes
+table = header + linebreak + values
 
 message = '*%(date)s*\n```%(table)s```' % {'date': convertDate(date), 'table': table}
